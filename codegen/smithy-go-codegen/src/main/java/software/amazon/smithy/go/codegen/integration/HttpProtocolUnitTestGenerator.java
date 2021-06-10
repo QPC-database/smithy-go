@@ -28,6 +28,7 @@ import java.util.logging.Logger;
 import software.amazon.smithy.codegen.core.CodegenException;
 import software.amazon.smithy.codegen.core.Symbol;
 import software.amazon.smithy.codegen.core.SymbolProvider;
+import software.amazon.smithy.go.codegen.GoSettings;
 import software.amazon.smithy.go.codegen.GoWriter;
 import software.amazon.smithy.go.codegen.ShapeValueGenerator;
 import software.amazon.smithy.go.codegen.SmithyGoDependency;
@@ -52,6 +53,7 @@ import software.amazon.smithy.utils.SmithyBuilder;
 public abstract class HttpProtocolUnitTestGenerator<T extends HttpMessageTestCase> {
     private static final Logger LOGGER = Logger.getLogger(HttpProtocolUnitTestGenerator.class.getName());
 
+    protected final GoSettings settings;
     protected final Model model;
     protected final SymbolProvider symbolProvider;
     protected final List<T> testCases;
@@ -73,6 +75,7 @@ public abstract class HttpProtocolUnitTestGenerator<T extends HttpMessageTestCas
      * @param builder the builder initializing the generator.
      */
     protected HttpProtocolUnitTestGenerator(Builder<T> builder) {
+        this.settings = SmithyBuilder.requiredState("settings", builder.settings);
         this.model = SmithyBuilder.requiredState("model", builder.model);
         this.symbolProvider = SmithyBuilder.requiredState("symbolProvider", builder.symbolProvider);
         this.protocolName = SmithyBuilder.requiredState("protocolName", builder.protocolName);
@@ -86,12 +89,14 @@ public abstract class HttpProtocolUnitTestGenerator<T extends HttpMessageTestCas
         opSymbol = symbolProvider.toSymbol(operation);
 
         inputShape = model.expectShape(operation.getInput()
-                .orElseThrow(() -> new CodegenException("missing input shape for operation: " + operation.getId())),
+                        .orElseThrow(() -> new CodegenException("missing input shape for operation: "
+                                + operation.getId())),
                 StructureShape.class);
         inputSymbol = symbolProvider.toSymbol(inputShape);
 
         outputShape = model.expectShape(operation.getOutput()
-                .orElseThrow(() -> new CodegenException("missing output shape for operation: " + operation.getId())),
+                        .orElseThrow(() -> new CodegenException("missing output shape for operation: "
+                                + operation.getId())),
                 StructureShape.class);
         outputSymbol = symbolProvider.toSymbol(outputShape);
     }
@@ -441,6 +446,7 @@ public abstract class HttpProtocolUnitTestGenerator<T extends HttpMessageTestCas
     ) {
         writer.addUseImports(SmithyGoDependency.SMITHY_TESTING);
         writer.addUseImports(SmithyGoDependency.GO_CMP_OPTIONS);
+        writer.addUseImports(SmithyGoDependency.SMITHY_DOCUMENT);
 
         writer.writeInline("if err := smithytesting.CompareValues($L, $L, cmpopts.IgnoreUnexported(", expect, actual);
 
@@ -448,7 +454,7 @@ public abstract class HttpProtocolUnitTestGenerator<T extends HttpMessageTestCas
             writer.write("$L,", ignoreType);
         }
 
-        writer.writeInline(")); err != nil {");
+        writer.writeInline("), cmpopts.IgnoreTypes(smithydocument.NoSerde{})); err != nil {");
         writer.write("   t.Errorf(\"expect $L value match:\\n%v\", err)", expect);
         writer.write("}");
     }
@@ -557,7 +563,7 @@ public abstract class HttpProtocolUnitTestGenerator<T extends HttpMessageTestCas
      * @param params values to initialize shape type with.
      */
     protected void writeShapeValueInline(GoWriter writer, StructureShape shape, ObjectNode params) {
-        new ShapeValueGenerator(model, symbolProvider, shapeValueGeneratorConfig)
+        new ShapeValueGenerator(settings, model, symbolProvider, shapeValueGeneratorConfig)
                 .writePointableStructureShapeValueInline(writer, shape, params);
     }
 
@@ -576,6 +582,7 @@ public abstract class HttpProtocolUnitTestGenerator<T extends HttpMessageTestCas
     }
 
     public abstract static class Builder<T extends HttpMessageTestCase> {
+        protected GoSettings settings;
         protected Model model;
         protected SymbolProvider symbolProvider;
         protected String protocolName = "";
@@ -585,6 +592,11 @@ public abstract class HttpProtocolUnitTestGenerator<T extends HttpMessageTestCas
         protected Set<ConfigValue> clientConfigValues = new TreeSet<>();
         protected Set<SkipTest> skipTests = new TreeSet<>();
         protected ShapeValueGenerator.Config shapeValueGeneratorConfig = ShapeValueGenerator.Config.builder().build();
+
+        public Builder<T> settings(GoSettings settings) {
+            this.settings = settings;
+            return this;
+        }
 
         public Builder<T> model(Model model) {
             this.model = model;

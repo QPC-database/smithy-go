@@ -54,6 +54,8 @@ public final class SmithyGoDependency {
     public static final GoDependency SMITHY_RAND = smithy("rand", "smithyrand");
     public static final GoDependency SMITHY_TESTING = smithy("testing", "smithytesting");
     public static final GoDependency SMITHY_WAITERS = smithy("waiter", "smithywaiter");
+    public static final GoDependency SMITHY_DOCUMENT = smithy("document", "smithydocument");
+    public static final GoDependency SMITHY_DOCUMENT_JSON = smithy("document/json", "smithydocumentjson");
 
     public static final GoDependency GO_CMP = goCmp("cmp");
     public static final GoDependency GO_CMP_OPTIONS = goCmp("cmp/cmpopts");
@@ -69,6 +71,7 @@ public final class SmithyGoDependency {
 
     /**
      * Get a {@link GoDependency} representing the standard library package import path.
+     *
      * @param importPath standard library import path
      * @return the {@link GoDependency} for the package import path
      */
@@ -78,8 +81,9 @@ public final class SmithyGoDependency {
 
     /**
      * Get a {@link GoDependency} representing the standard library package import path with the given alias.
+     *
      * @param importPath standard library package import path
-     * @param alias the package alias
+     * @param alias      the package alias
      * @return the {@link GoDependency} for the package import path
      */
     public static GoDependency stdlib(String importPath, String alias) {
